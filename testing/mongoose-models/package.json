@@ -1,0 +1,19 @@
+{
+  "name": "mongoose-models",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "`npm bin`/mocha --recursive"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^3.2.0",
+    "sinon": "^1.17.7"
+  },
+  "dependencies": {
+    "mongoose": "^4.8.1"
+  }
+}
