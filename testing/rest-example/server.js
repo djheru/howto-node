@@ -32,7 +32,7 @@ app.route('/book')
   .get(book.getBooks)
   .post(book.postBook);
 
-app.route('book/:id')
+app.route('/book/:id')
   .get(book.getBook)
   .put(book.updateBook)
   .delete(book.deleteBook);

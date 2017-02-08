@@ -35,7 +35,7 @@ module.exports = {
       if (err) {
         return res.send(err);
       }
-      return res.json({ message: 'Book deleted', result })
+      return res.json({ message: 'Book removed', result })
     });
   },
 
