@@ -9,6 +9,17 @@ function getCurrentCity(callback) {
   }, delayms)
 }
 
+function fetchCurrentCity(onSuccess, onError) {
+  getCurrentCity(function (err, result) {
+    if (err) {
+      onError(err);
+    } else {
+      onSuccess(result);
+    }
+    return;
+  });
+}
+
 function getWeather(city, callback) {
   setTimeout(function () {
 
@@ -42,3 +53,10 @@ function getForecast(city, callback) {
 
   }, delayms)
 }
+
+
+suite.only('operations');
+test('fetchCurrentCity with separate success and error callbacks', function (done) {
+  fetchCurrentCity(res => done(), err => done(err));
+});
+

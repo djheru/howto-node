@@ -23,14 +23,13 @@ test("Verbose, hard to reuse, easy to forget, additional error handling mechanis
       return;
     }
 
-    getWeather(null, function (error, weather) {
-      /*
+    getWeather('New York, NY', function (error, weather) {
        if (error) {
-       done(error);
-       return;
+         done(error);
+         return;
        }
-       */
       console.log("weather", weather);
+       done();
     });
 
     console.log(`Weather for ${city}:`);
@@ -39,7 +38,7 @@ test("Verbose, hard to reuse, easy to forget, additional error handling mechanis
 });
 
 test("Seams rip across program", function (done) {
-  let _city;
+  let _city = 'NYC';
   getCurrentCity((error, city) => _city = city);
 
   getWeather(_city, function (error, city) {
@@ -47,6 +46,7 @@ test("Seams rip across program", function (done) {
       done(error);
       return;
     }
+    done();
   });
 
 });
@@ -158,11 +158,11 @@ test("Combined serial async dependencies and parallel result synchronization, wi
     console.log(`Weather for ${city}:`);
   });
 
-  /* 
+  /*
    // What I would like this to look like
    // - imagine `await` waits for an async operation to complete and then returns the result
    // - `await` does this without blocking
-   // - `await` will throw any errors from the async operation 
+   // - `await` will throw any errors from the async operation
 
    const city = await getCurrentCity();
 
@@ -171,10 +171,10 @@ test("Combined serial async dependencies and parallel result synchronization, wi
    const forecastRequest = getForecast(city);
 
    const weather = await weatherRequest;
-   console.log("weather", weather); 
+   console.log("weather", weather);
 
-   const forecast = await forecastRequest; 
-   console.log("forecast", forecast); 
+   const forecast = await forecastRequest;
+   console.log("forecast", forecast);
 
    done();
 
