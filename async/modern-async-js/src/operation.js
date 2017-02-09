@@ -10,6 +10,7 @@ function getCurrentCity(callback) {
 }
 
 function getWeather(city, callback) {
+  console.log(`Getting weather for: ${city}`);
   setTimeout(function () {
 
     if (!city) {
@@ -27,6 +28,7 @@ function getWeather(city, callback) {
 }
 
 function getForecast(city, callback) {
+  console.log(`Getting forecast for: ${city}`);
   setTimeout(function () {
 
     if (!city) {
@@ -83,21 +85,42 @@ function Operation() {
 
   operation.onCompletion = function setCallbacks(onSuccess, onError) {
     const noop = function () {};
+    const completionOp = new Operation();
+
     const successCallback = onSuccess || noop;
     const errorCallback = onError || noop;
-    if (result) {
-      successCallback(result);
-    } else if (error) {
-      errorCallback(error);
-    } else {
-      operation.successReactions.push(onSuccess || noop);
-      operation.errorReactions.push(onError || noop);
-    }
 
+    const successHandler = () => {
+      const callbackResult = successCallback(result);
+      if (callbackResult && callbackResult.onCompletion) {
+        callbackResult.forwardCompletion(completionOp)
+      }
+    };
+
+    const errorHandler = () => {
+      const callbackResult = errorCallback(error);
+      if (callbackResult && callbackResult.onCompletion) {
+        callbackResult.forwardCompletion(completionOp)
+      }
+    };
+
+    if (result) {
+      successHandler();
+    } else if (error) {
+      errorHandler();
+    } else {
+      operation.successReactions.push(successHandler);
+      operation.errorReactions.push(errorHandler);
+    }
+    return completionOp;
   };
 
   operation.onFailure = function onFailure(onError) {
-    operation.onCompletion(null, onError);
+    return operation.onCompletion(null, onError);
+  };
+
+  operation.forwardCompletion = function forwardCompletion(op) {
+    operation.onCompletion(op.succeed, op.fail);
   };
 
   operation.nodeCallback = function nodeCallback(err, res) {
@@ -111,9 +134,42 @@ function Operation() {
   return operation;
 }
 
+// helper fcn
 function doLater(func) {
   setTimeout(func, 1);
 }
+
+test('synchronized lexical parallelism', function (done) {
+  const city = 'NYC';
+  console.log('Initializing operations');
+  const weatherOperation = fetchWeather(city);
+  const forecastOperation = fetchForecast(city);
+  console.log('Assigning completion handlers');
+
+  weatherOperation.onCompletion((weather) => {
+    forecastOperation.onCompletion((forecast) => {
+      console.log(`Current Temp: ${weather.temp} in ${city} with 5 day forecast: ${forecast.fiveDay}`);
+      done();
+    });
+  });
+});
+
+test('synchronized lexical parallelism without nesting', function (done) {
+  // create a new operation to wrap the multiple fetch operations
+  let fetchCityThenWeatherOperation = fetchCurrentCity() // fetch the city
+    .onCompletion((city) => {
+      // then fetch the weather for the city
+      fetchWeather(city).forwardCompletion(fetchCityThenWeatherOperation);
+        /*.onCompletion(
+          //delegate the onCompletion handlers of the innermost child operation to the parent operation
+          fetchCityThenWeatherOperation.succeed,
+          fetchCityThenWeatherOperation.fail
+        );*/
+  });
+
+  // define what to do when the composite operation is complete
+  fetchCityThenWeatherOperation.onCompletion((weather) => done());
+});
 
 test('register success callback asynchronously', function (done) {
   const successOperation = fetchCurrentCity();
