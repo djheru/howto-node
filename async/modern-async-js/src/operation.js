@@ -43,43 +43,6 @@ function getForecast(city, callback) {
   }, delayms)
 }
 
-suite.only('operations');
-
-function Operation() {
-  const operation = {
-    successReactions: [],
-    errorReactions: []
-  };
-
-  operation.succeed = function succeed(res) {
-    operation.successReactions.forEach(r => r(res));
-  };
-
-  operation.fail = function fail(err) {
-    operation.errorReactions.forEach(r => r(err));
-  };
-
-  operation.onCompletion = function setCallbacks(onSuccess, onError) {
-    const noop = function () {};
-    operation.successReactions.push(onSuccess || noop);
-    operation.errorReactions.push(onError || noop);
-  };
-
-  operation.onFailure = function onFailure(onError) {
-    operation.onCompletion(null, onError);
-  };
-
-  operation.nodeCallback = function nodeCallback(err, res) {
-    if (err) {
-      operation.fail(err);
-      return;
-    }
-    operation.succeed(res);
-  };
-
-  return operation;
-}
-
 function fetchWeather(city) {
   const operation = new Operation();
   getWeather(city, operation.nodeCallback);
@@ -97,6 +60,70 @@ function fetchForecast(city) {
   getForecast(city, operation.nodeCallback);
   return operation;
 }
+
+suite.only('operations');
+
+function Operation() {
+  const operation = {
+    successReactions: [],
+    errorReactions: []
+  };
+  let result = false;
+  let error = false;
+
+  operation.succeed = function succeed(res) {
+    result = res;
+    operation.successReactions.forEach(r => r(res));
+  };
+
+  operation.fail = function fail(err) {
+    error = err;
+    operation.errorReactions.forEach(r => r(err));
+  };
+
+  operation.onCompletion = function setCallbacks(onSuccess, onError) {
+    const noop = function () {};
+    const successCallback = onSuccess || noop;
+    const errorCallback = onError || noop;
+    if (result) {
+      successCallback(result);
+    } else if (error) {
+      errorCallback(error);
+    } else {
+      operation.successReactions.push(onSuccess || noop);
+      operation.errorReactions.push(onError || noop);
+    }
+
+  };
+
+  operation.onFailure = function onFailure(onError) {
+    operation.onCompletion(null, onError);
+  };
+
+  operation.nodeCallback = function nodeCallback(err, res) {
+    if (err) {
+      operation.fail(err);
+      return;
+    }
+    operation.succeed(res);
+  };
+
+  return operation;
+}
+
+function doLater(func) {
+  setTimeout(func, 1);
+}
+
+test('register success callback asynchronously', function (done) {
+  const successOperation = fetchCurrentCity();
+  doLater(() => successOperation.onCompletion(() => done()));
+});
+
+test('register error callback asynchronously', function (done) {
+  const failureOperation = fetchForecast(); // throw error by not passing a city
+  doLater(() => failureOperation.onFailure(() => done()));
+});
 
 test('fetchForecast handlers for expected case', function (done) {
   const operation = fetchForecast('NYC');
