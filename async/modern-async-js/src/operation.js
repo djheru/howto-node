@@ -3,37 +3,17 @@ const delayms = 1;
 function getCurrentCity(callback) {
   setTimeout(function () {
 
-    const city = "New York, NY";
+    const city = 'New York, NY';
     callback(null, city);
 
   }, delayms)
-}
-
-function fetchCurrentCity() {
-  const operation = {
-
-    setCallbacks(onSuccess, onError){
-      operation.onSuccess = onSuccess;
-      operation.onError = onError;
-    }
-  };
-
-  getCurrentCity(function (err, res) {
-    if (err) {
-      operation.onError(err);
-    } else {
-      operation.onSuccess(res);
-    }
-    return;
-  });
-  return operation;
 }
 
 function getWeather(city, callback) {
   setTimeout(function () {
 
     if (!city) {
-      callback(new Error("City required to get weather"));
+      callback(new Error('City required to get weather'));
       return;
     }
 
@@ -50,7 +30,7 @@ function getForecast(city, callback) {
   setTimeout(function () {
 
     if (!city) {
-      callback(new Error("City required to get forecast"));
+      callback(new Error('City required to get forecast'));
       return;
     }
 
@@ -63,10 +43,117 @@ function getForecast(city, callback) {
   }, delayms)
 }
 
-
 suite.only('operations');
-test('fetchCurrentCity with separate success and error callbacks', function (done) {
-  let operation = fetchCurrentCity();
-  operation.setCallbacks(result => done(), error => done(err));
+
+function Operation() {
+  const operation = {
+    successReactions: [],
+    errorReactions: []
+  };
+
+  operation.succeed = function succeed(res) {
+    operation.successReactions.forEach(r => r(res));
+  };
+
+  operation.fail = function fail(err) {
+    operation.errorReactions.forEach(r => r(err));
+  };
+
+  operation.onCompletion = function setCallbacks(onSuccess, onError) {
+    const noop = function () {};
+    operation.successReactions.push(onSuccess || noop);
+    operation.errorReactions.push(onError || noop);
+  };
+
+  operation.onFailure = function onFailure(onError) {
+    operation.onCompletion(null, onError);
+  };
+
+  operation.nodeCallback = function nodeCallback(err, res) {
+    if (err) {
+      operation.fail(err);
+      return;
+    }
+    operation.succeed(res);
+  };
+
+  return operation;
+}
+
+function fetchWeather(city) {
+  const operation = new Operation();
+  getWeather(city, operation.nodeCallback);
+  return operation;
+}
+
+function fetchCurrentCity() {
+  const operation = new Operation();
+  getCurrentCity(operation.nodeCallback);
+  return operation;
+}
+
+function fetchForecast(city) {
+  const operation = new Operation();
+  getForecast(city, operation.nodeCallback);
+  return operation;
+}
+
+test('fetchForecast handlers for expected case', function (done) {
+  const operation = fetchForecast('NYC');
+
+  operation.onFailure(err => done(err)); // this shouldn't happen
+  operation.onCompletion(res => done());
 });
 
+test('fetchForecast handlers for error case', function (done) {
+  const operation = fetchForecast(null);
+
+  operation.onCompletion(res => done(new Error('shouldn\'t succeed'))); // this shouldn't happen
+  operation.onFailure(err => done());
+});
+
+test('noop if no success handler passed', function (done) {
+
+  const operation = fetchCurrentCity();
+
+  // noop should register for success handler
+  operation.onFailure(err => done(err));
+
+  //trigger success to ensure the noop registered
+  operation.onCompletion(result => done());
+
+});
+
+test('noop if no error handler passed', function (done) {
+
+  const operation = fetchWeather(null); // intentionally failing to test errors, no city argument passed to function
+
+  // noop should register for the error handler
+  operation.onCompletion(result => done(new Error('shouldn\'t succeed')));
+
+  // trigger failure to ensure the noop registered
+  operation.onFailure(err => done());
+
+});
+
+test('pass multiple callbacks - all of them are called', function (done) {
+
+  const operation = fetchCurrentCity();
+
+  const multiDone = callDone(done).afterTwoCalls();
+
+  operation.onCompletion(result => multiDone());
+  operation.onCompletion(result => multiDone());
+});
+
+test('fetchCurrentCity passes the callbacks later on', function (done) {
+
+  // initiate operation
+  const operation = fetchCurrentCity();
+
+  // register callbacks
+  operation.onCompletion(
+    result => done(),
+    err => done(err));
+
+});
