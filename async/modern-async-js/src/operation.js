@@ -115,6 +115,8 @@ function Operation() {
     return completionOp;
   };
 
+  operation.then = operation.onCompletion;
+
   operation.onFailure = function onFailure(onError) {
     return operation.onCompletion(null, onError);
   };
@@ -155,20 +157,9 @@ test('synchronized lexical parallelism', function (done) {
 });
 
 test('synchronized lexical parallelism without nesting', function (done) {
-  // create a new operation to wrap the multiple fetch operations
-  let fetchCityThenWeatherOperation = fetchCurrentCity() // fetch the city
-    .onCompletion((city) => {
-      // then fetch the weather for the city
-      fetchWeather(city).forwardCompletion(fetchCityThenWeatherOperation);
-        /*.onCompletion(
-          //delegate the onCompletion handlers of the innermost child operation to the parent operation
-          fetchCityThenWeatherOperation.succeed,
-          fetchCityThenWeatherOperation.fail
-        );*/
-  });
-
-  // define what to do when the composite operation is complete
-  fetchCityThenWeatherOperation.onCompletion((weather) => done());
+  fetchCurrentCity() // fetch the city
+    .then((city) => fetchWeather(city))
+    .then((weather) => done());
 });
 
 test('register success callback asynchronously', function (done) {
