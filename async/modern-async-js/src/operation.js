@@ -158,7 +158,7 @@ test('synchronized lexical parallelism', function (done) {
 
 test('synchronized lexical parallelism without nesting', function (done) {
   fetchCurrentCity() // fetch the city
-    .then((city) => fetchWeather(city))
+    .then(fetchWeather)
     .then((weather) => done());
 });
 
