@@ -96,7 +96,9 @@ function Operation() {
         const callbackResult = successCallback(result);
         if (callbackResult && callbackResult.then) {
           callbackResult.forwardCompletion(proxyOperation)
+          return;
         }
+        proxyOperation.succeed(callbackResult);
       } else {
         return proxyOperation.succeed(result);
       }
@@ -159,6 +161,17 @@ function fetchCurrentCityThatFails() {
   return operation;
 }
 
+test('synchronous result transformation', function (done) {
+  fetchCurrentCity()
+    .then(function (city) {
+      return '10019';
+    })
+    .then(function (zip) {
+      expect(zip).toBe('10019');
+      done();
+    });
+});
+
 test('error fallthrough', function (done) {
   fetchCurrentCityThatFails()
     .then(function (city) {
@@ -171,7 +184,7 @@ test('error fallthrough', function (done) {
     .catch(function (err) {
       done();
     })
-})
+});
 
 test('error bypassed if not needed', function (done) {
   fetchCurrentCity()
