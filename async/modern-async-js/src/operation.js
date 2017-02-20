@@ -1,9 +1,14 @@
 const delayms = 1;
 
+const expectedCurrentCity = 'New York, NY';
+const expectedForecast = {
+  fiveDay: [60, 70, 80, 45, 50]
+};
+
 function getCurrentCity(callback) {
   setTimeout(function () {
 
-    const city = 'New York, NY';
+    const city = expectedCurrentCity;
     callback(null, city);
 
   }, delayms)
@@ -36,11 +41,7 @@ function getForecast(city, callback) {
       return;
     }
 
-    const fiveDay = {
-      fiveDay: [60, 70, 80, 45, 50]
-    };
-
-    callback(null, fiveDay)
+    callback(null, expectedForecast);
 
   }, delayms)
 }
@@ -85,22 +86,32 @@ function Operation() {
 
   operation.onCompletion = function setCallbacks(onSuccess, onError) {
     const noop = function () {};
-    const completionOp = new Operation();
+    const proxyOperation = new Operation();
 
     const successCallback = onSuccess || noop;
     const errorCallback = onError || noop;
 
     const successHandler = () => {
-      const callbackResult = successCallback(result);
-      if (callbackResult && callbackResult.onCompletion) {
-        callbackResult.forwardCompletion(completionOp)
+      if (onSuccess) {
+        const callbackResult = successCallback(result);
+        if (callbackResult && callbackResult.then) {
+          callbackResult.forwardCompletion(proxyOperation)
+        }
+      } else {
+        return proxyOperation.succeed(result);
       }
     };
 
     const errorHandler = () => {
       const callbackResult = errorCallback(error);
-      if (callbackResult && callbackResult.onCompletion) {
-        callbackResult.forwardCompletion(completionOp)
+      if (onError) {
+        if (callbackResult && callbackResult.then) {
+          callbackResult.forwardCompletion(proxyOperation);
+          return;
+        }
+        proxyOperation.succeed(callbackResult);
+      } else {
+        proxyOperation.fail(error);
       }
     };
 
@@ -112,17 +123,15 @@ function Operation() {
       operation.successReactions.push(successHandler);
       operation.errorReactions.push(errorHandler);
     }
-    return completionOp;
+    return proxyOperation;
   };
 
-  operation.then = operation.onCompletion;
-
   operation.onFailure = function onFailure(onError) {
-    return operation.onCompletion(null, onError);
+    return operation.then(null, onError);
   };
 
   operation.forwardCompletion = function forwardCompletion(op) {
-    operation.onCompletion(op.succeed, op.fail);
+    operation.then(op.succeed, op.fail);
   };
 
   operation.nodeCallback = function nodeCallback(err, res) {
@@ -133,6 +142,9 @@ function Operation() {
     operation.succeed(res);
   };
 
+  operation.then = operation.onCompletion;
+  operation.catch = operation.onFailure;
+
   return operation;
 }
 
@@ -140,6 +152,62 @@ function Operation() {
 function doLater(func) {
   setTimeout(func, 1);
 }
+
+function fetchCurrentCityThatFails() {
+  const operation = new Operation();
+  doLater(() => operation.fail(new Error('GPS Broken')));
+  return operation;
+}
+
+test('error fallthrough', function (done) {
+  fetchCurrentCityThatFails()
+    .then(function (city) {
+      console.log(city);
+      return fetchForecast(city);
+    })
+    .then(function (forecast) {
+      expect(forecast).toBe(expectedForecast);
+    })
+    .catch(function (err) {
+      done();
+    })
+})
+
+test('error bypassed if not needed', function (done) {
+  fetchCurrentCity()
+    .catch(err => {
+      console.log('ugh');
+      return 'default city';
+    })
+    .then(function (city) {
+      expect(city).toBe(expectedCurrentCity);
+      done();
+    });
+});
+
+test('async error recovery', function (done) {
+  fetchCurrentCityThatFails()
+    .catch(function (error) {
+      console.log(error);
+      return fetchCurrentCity();
+    })
+    .then(function (city) {
+      expect(city).toBe(expectedCurrentCity);
+      done();
+    });
+});
+
+test('synchronous error recovery', function (done) {
+  fetchCurrentCityThatFails()
+    .catch(function (err) {
+      console.log(err);
+      return 'default city';
+    })
+    .then(function (city) {
+      expect(city).toBe('default city');
+      done();
+    });
+});
 
 test('synchronized lexical parallelism', function (done) {
   const city = 'NYC';
