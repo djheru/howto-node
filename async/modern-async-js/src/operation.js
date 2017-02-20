@@ -93,7 +93,13 @@ function Operation() {
 
     const successHandler = () => {
       if (onSuccess) {
-        const callbackResult = successCallback(result);
+        let callbackResult;
+        try {
+          callbackResult = successCallback(result);
+        } catch (e) {
+          proxyOperation.fail(e);
+          return;
+        }
         if (callbackResult && callbackResult.then) {
           callbackResult.forwardCompletion(proxyOperation)
           return;
@@ -105,8 +111,13 @@ function Operation() {
     };
 
     const errorHandler = () => {
-      const callbackResult = errorCallback(error);
+      let callbackResult;
       if (onError) {
+        try {
+          callbackResult = errorCallback(error);
+        } catch (e) {
+          proxyOperation.fail(e);
+        }
         if (callbackResult && callbackResult.then) {
           callbackResult.forwardCompletion(proxyOperation);
           return;
@@ -160,6 +171,33 @@ function fetchCurrentCityThatFails() {
   doLater(() => operation.fail(new Error('GPS Broken')));
   return operation;
 }
+
+test('recover from errors in the error handler', function (done) {
+  fetchCurrentCity()
+    .then(function (city) {
+      throw new Error('ohai');
+      return fetchWeather(city);
+    })
+    .catch(function (err) {
+      expect(err.message).toBe('ohai');
+      throw new Error('ohai2');
+    })
+    .catch(function (err) {
+      expect(err.message).toBe('ohai2');
+      done();
+    });
+});
+
+test('thrown error recovery', function (done) {
+  fetchCurrentCity()
+    .then(function (city) {
+      throw new Error('ohai');
+      return fetchWeather(city);
+    })
+    .catch(function (err) {
+      done();
+    });
+});
 
 test('synchronous result transformation', function (done) {
   fetchCurrentCity()
