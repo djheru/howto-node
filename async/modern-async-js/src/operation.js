@@ -69,19 +69,26 @@ suite.only('operations');
 function Operation() {
   const operation = {
     successReactions: [],
-    errorReactions: []
+    errorReactions: [],
+    complete: false
   };
   let result = false;
   let error = false;
 
   operation.succeed = function succeed(res) {
-    result = res;
-    operation.successReactions.forEach(r => r(res));
+    if (!operation.complete) {
+      result = res;
+      operation.successReactions.forEach(r => r(res));
+      operation.complete = true;
+    }
   };
 
   operation.fail = function fail(err) {
-    error = err;
-    operation.errorReactions.forEach(r => r(err));
+    if (!operation.complete) {
+      error = err;
+      operation.errorReactions.forEach(r => r(err));
+      operation.complete = true;
+    }
   };
 
   operation.onCompletion = function setCallbacks(onSuccess, onError) {
@@ -171,6 +178,34 @@ function fetchCurrentCityThatFails() {
   doLater(() => operation.fail(new Error('GPS Broken')));
   return operation;
 }
+
+function fetchCurrentCityIndecisive() {
+  const operation = new Operation();
+  doLater(() => {
+    operation.succeed('NYC');
+    operation.succeed('Philly');
+  });
+  return operation;
+}
+
+function fetchCurrentCityMultiFail() {
+  const operation = new Operation();
+  doLater(() => {
+    operation.fail(new Error('failed 1 time'));
+    operation.fail(new Error('failed 2 times'));
+  });
+  return operation;
+}
+
+test('protect against multiple invocations of failure handler', function (done) {
+  fetchCurrentCityMultiFail()
+    .catch(res => done());
+});
+
+test('protect against multiple invocations of success handler', function (done) {
+  fetchCurrentCityIndecisive()
+    .then(res => done());
+});
 
 test('recover from errors in the error handler', function (done) {
   fetchCurrentCity()
