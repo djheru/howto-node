@@ -99,40 +99,44 @@ function Operation() {
     const errorCallback = onError || noop;
 
     const successHandler = () => {
-      if (onSuccess) {
-        let callbackResult;
-        try {
-          callbackResult = successCallback(result);
-        } catch (e) {
-          proxyOperation.fail(e);
-          return;
+      doLater(function () {
+        if (onSuccess) {
+          let callbackResult;
+          try {
+            callbackResult = successCallback(result);
+          } catch (e) {
+            proxyOperation.fail(e);
+            return;
+          }
+          if (callbackResult && callbackResult.then) {
+            callbackResult.forwardCompletion(proxyOperation)
+            return;
+          }
+          proxyOperation.succeed(callbackResult);
+        } else {
+          return proxyOperation.succeed(result);
         }
-        if (callbackResult && callbackResult.then) {
-          callbackResult.forwardCompletion(proxyOperation)
-          return;
-        }
-        proxyOperation.succeed(callbackResult);
-      } else {
-        return proxyOperation.succeed(result);
-      }
+      })
     };
 
     const errorHandler = () => {
-      let callbackResult;
-      if (onError) {
-        try {
-          callbackResult = errorCallback(error);
-        } catch (e) {
-          proxyOperation.fail(e);
+      doLater(function () {
+        let callbackResult;
+        if (onError) {
+          try {
+            callbackResult = errorCallback(error);
+          } catch (e) {
+            proxyOperation.fail(e);
+          }
+          if (callbackResult && callbackResult.then) {
+            callbackResult.forwardCompletion(proxyOperation);
+            return;
+          }
+          proxyOperation.succeed(callbackResult);
+        } else {
+          proxyOperation.fail(error);
         }
-        if (callbackResult && callbackResult.then) {
-          callbackResult.forwardCompletion(proxyOperation);
-          return;
-        }
-        proxyOperation.succeed(callbackResult);
-      } else {
-        proxyOperation.fail(error);
-      }
+      });
     };
 
     if (result) {
@@ -196,6 +200,31 @@ function fetchCurrentCityMultiFail() {
   });
   return operation;
 }
+
+function fetchCurrentCitySync () {
+  const operation = new Operation();
+  console.log('getting city sync');
+  operation.succeed('New York, NY');
+  return operation;
+}
+
+test('protect against success handlers being called synchronously', function (done) {
+  const operation = new Operation();
+  operation.succeed('New York, NY');
+  operation.then(function (city) {
+    doneAlias();
+  });
+  const doneAlias = done;
+});
+
+test('protect against error handlers being called synchronously', function (done) {
+  const operation = new Operation();
+  operation.fail(new Error('error!'));
+  operation.catch(function (err) {
+    doneAlias();
+  });
+  const doneAlias = done;
+});
 
 test('protect against multiple invocations of failure handler', function (done) {
   fetchCurrentCityMultiFail()
