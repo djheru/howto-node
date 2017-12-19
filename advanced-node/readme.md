@@ -191,4 +191,41 @@ console.log(arguments); // see the values of the wrapper arguments
 - `npm home somerepo` - open the homepage of a module
 - `npm repo somerepo` - open the repository of a package
 - `npm prune` - Remove packages (and their deps) that are not in the package.json
-- `npm `
+
+## Concurrency and the Event Loop
+
+- Based on an event model
+- Slow I/O operations are handled with events and callbacks
+- Fundamental to node
+
+#### What is I/O
+
+- Used to label communication between a CPU process and anything external
+	- Memory, disk, network, other processes
+	- Communicate via signals
+- Usually used to reference disk and network operations
+	- These are slow
+- Handling slow I/O
+	- Synchronous operations 
+		- Slow, blocking
+	- fork() 
+		- Doesn't scale
+	- Threads
+		- Many complications when threads use the same resources
+	- Event Loop
+		- Node
+
+#### The Event Loop
+
+- Handles external events and converts them into callback invocations
+- Picks events from the event queue and pushes their callbacks to the call stack
+- Started as soon as node starts executing a script
+	- Stops when process exits
+- Also present in browsers
+- Terminology
+	- Heap - Where objects are stored in memory
+		- Memory allocated by VM for operations
+	- Call Stack - FILO structure representing the operations to perform
+		- i.e. the functions being called
+		- When functions return, they are removed from the stack
+- Handling slow operations
