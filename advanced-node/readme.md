@@ -217,6 +217,27 @@ console.log(arguments); // see the values of the wrapper arguments
 
 #### The Event Loop
 
+```
+   ┌───────────────────────┐
+┌─>│        timers         │
+│  └──────────┬────────────┘
+│  ┌──────────┴────────────┐
+│  │     I/O callbacks     │
+│  └──────────┬────────────┘
+│  ┌──────────┴────────────┐
+│  │     idle, prepare     │
+│  └──────────┬────────────┘      ┌───────────────┐
+│  ┌──────────┴────────────┐      │   incoming:   │
+│  │         poll          │<─────┤  connections, │
+│  └──────────┬────────────┘      │   data, etc.  │
+│  ┌──────────┴────────────┐      └───────────────┘
+│  │        check          │
+│  └──────────┬────────────┘
+│  ┌──────────┴────────────┐
+└──┤    close callbacks    │
+   └───────────────────────┘
+```
+
 - Handles external events and converts them into callback invocations
 - Picks events from the event queue and pushes their callbacks to the call stack
 - Started as soon as node starts executing a script
@@ -228,4 +249,59 @@ console.log(arguments); // see the values of the wrapper arguments
 	- Call Stack - FILO structure representing the operations to perform
 		- i.e. the functions being called
 		- When functions return, they are removed from the stack
-- Handling slow operations
+	- Event Queue
+		- List of events to be processed
+			- Can have associated callback
+		- FIFO queue
+		- Invoking 
+	
+#### How Callbacks Work
+
+```javascript
+const slowAdd = (a, b) => {
+	setTimeout(() => console.log(a+b), 4000);
+}
+
+function main() {
+	slowAdd(3, 3);
+	slowAdd(4, 4);
+}
+main();
+```
+1. The call to `main()` is added to the call stack (IATTCS)
+2. The call to `slowAdd(3, 3)` IATTCS
+3. The call to `setTimeout` IATTCS
+4. The node runtime sees the call to `setTimeout` and starts a timer outside of the JS environment, with the callback
+5. The call to `setTimeout` is removed from the call stack (IRFTCS)
+6. The call to `slowAdd` IRFTCS
+7. The call to `slowAdd(4, 4)` IIATCS
+8. The call to `setTimeout` IATTCS
+9. The node runtime sees the second call to `setTimeout` and starts a timer outside of the JS environment, with the callback
+10. The second call to `setTimeout` IRFTCS
+11. The second call to `slowAdd` IRFTCS
+12. When the first timer is done, it adds the first callback to the queue
+13. When the second timer is done, it adds the second callback to the queue
+14. The event loop detects that the call stack is empty and the queue is not, so the first callback IATTCS
+15. The call to `console.log` is added to the stack, executed, and IRFTCS
+16. The call to the first callback IRFTCS
+17. The event loop detects that the call stack is empty and the queue is not, so the second callback IATTCS
+15. The second call to `console.log` is added to the stack, executed, and IRFTCS
+16. The call to the second callback IRFTCS
+17. The node process exits
+
+- The event loop monitors the call stack and the event queue. 
+- When the stack is empty, and the queue is not empty, that means there are events waiting to be processed
+	- Time to call the callbacks!
+- The event loop will de-queue one item and add it to the call stack
+	- Continues until the queue is empty
+
+#### setImmediate and process.nextTick
+
+- setImmedate is a special timer that runs in the `check` phase
+- Similar to a `setTimeout` of 0ms, but in some situations it will take precedence over other timeouts
+- Use when you want something to get executed on the next tick of the event loop
+- `process.nextTick` is similar, but does not actually execute on the next tick
+	- It is outside the event loop
+	- It executes in the space between the end of the current operation and when the event loop continues on to the next operation
+	
+
