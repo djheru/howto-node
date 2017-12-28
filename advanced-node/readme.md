@@ -304,4 +304,82 @@ main();
 	- It is outside the event loop
 	- It executes in the space between the end of the current operation and when the event loop continues on to the next operation
 	
+## EventEmitter
 
+- Emitter objects emit named events that cause listener functions to be called
+- 2 main features
+	- Emitting events
+	- Registering callbacks
+
+```javascript
+const EventEmitter = require('events');
+
+class CustomEmitter extends EventEmitter {
+	// ....
+}
+
+const customEmitter = new CustomEmitter();
+
+customEmitter.emit('anythingIWant');
+
+customEmitter.on('anythingIWant', someListenerFunction);
+```
+
+- You can also override the `execute` function
+```javascript
+//Synchronous example
+const EventEmitter = require('events');
+
+class WithLog extends EventEmitter {
+	execute(taskFunc) {
+		console.log('before');
+		this.emit('begin');
+		taskFunc();
+		this.emit('end');
+		console.log('after');
+	}
+}
+
+const withLog = new WithLog();
+withLog.on('begin', () => console.log('triggering "begin"'));
+withLog.on('end', () => console.log('triggering "end"'));
+
+withLog.execute(() => console.log('About to execute up in this mutha'));
+
+/*
+before
+triggering "begin"
+About to execute up in this mutha
+triggering "end"
+after
+
+*/
+```
+
+```javascript
+//Asynchronous example
+const EventEmitter = require('events');
+const fs = require('fs');
+
+class WithAsyncLog extends EventEmitter {
+	execute(asyncTaskFunc, ...args) {
+		console.log('execute');
+		console.time('execute');
+		this.emit('begin');
+		asyncTaskFunc(...args, (err, data) => {
+			if (err) {
+				this.emit('error', err);
+			}
+			this.emit('data', data);
+			console.endTime('execute');
+			this.emit('end');
+		});
+	}
+}
+
+const withLog = new WithAsyncLog();
+withLog.on('begin', () => console.log('"begin" event emitted'));
+withLog.on('end', () => console.log('"end" event emitted'));
+
+withLog.execute(fs.readFile, __filename);
+```
