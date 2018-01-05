@@ -23,5 +23,5 @@ withLog.on('data', (data) => console.log('"data" event emitted', data.toString()
 withLog.on('error', (err) => console.log('"error" event emitted', err));
 withLog.on('end', () => console.log('"end" event emitted'));
 
-withLog.execute(fs.readFile, './readme.md');
-withLog.execute(fs.readFile, __filename + '.mybutt.jpg.gif.mp4.lol');
+withLog.execute(fs.readFile, __filename + '.mybutt.jpg.gif.mp4.lol'); // if you comment out the 'error' handler, the process will exit
+withLog.execute(fs.readFile, './emitterasync.js');

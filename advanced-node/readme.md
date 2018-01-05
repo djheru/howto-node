@@ -368,10 +368,10 @@ class WithAsyncLog extends EventEmitter {
 		this.emit('begin');
 		asyncTaskFunc(...args, (err, data) => {
 			if (err) {
-				this.emit('error', err);
+				return this.emit('error', err);
 			}
 			this.emit('data', data);
-			console.endTime('execute');
+			console.timeEnd('execute');
 			this.emit('end');
 		});
 	}
@@ -379,7 +379,26 @@ class WithAsyncLog extends EventEmitter {
 
 const withLog = new WithAsyncLog();
 withLog.on('begin', () => console.log('"begin" event emitted'));
+withLog.on('data', (data) => console.log('"data" event emitted', data.toString()));
+withLog.on('error', (err) => console.log('"error" event emitted', err));
 withLog.on('end', () => console.log('"end" event emitted'));
 
-withLog.execute(fs.readFile, __filename);
+withLog.execute(fs.readFile, __filename + '.mybutt.jpg.gif.mp4.lol'); 
+// if you comment out the 'error' handler, the process will exit here
+withLog.execute(fs.readFile, './emitterasync.js');
 ```
+
+- Use the uncaughtException event for cleanup
+
+```javascript
+process.once('uncaughtException', (err) => {
+	console.log(err);
+	//cleanup stuffs
+});
+```
+
+#### .once, .prependListener, .removeListener
+- use `.once()` to have a listener function respond only once to an event
+- use `.prependListener()` to attach a listener to the beginning of the listeners for that event
+- you'll never guess what `.removeListener` does!
+
