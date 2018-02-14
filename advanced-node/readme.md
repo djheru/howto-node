@@ -402,3 +402,192 @@ process.once('uncaughtException', (err) => {
 - use `.prependListener()` to attach a listener to the beginning of the listeners for that event
 - you'll never guess what `.removeListener` does!
 
+## Node Networking
+
+## Node HTTP
+
+## Node Common Built-in Libraries
+
+#### Working with the OS
+
+```javascript
+const os = require('os');
+os.hosname();
+os.cpus();
+os.networkInterfaces()
+os.freemem();
+os.type(); // e.g. 'Darwin'
+os.tempdir()/os.tempDir()
+os.homedir();
+os.platform();
+os.EOL //property containing e.g. '\n'
+os.userInfo();
+```
+
+#### Filesystem
+
+- Has sync and async versions of the methods
+	- sync versions throw, async passes errors to the first arg of the callback
+
+```javascript
+const fs = require('fs');
+
+// returns a buffer if the encoding is not specified
+const data = await fs.readFile(filename, (e, data) => { if (e) { throw e; } else { Promise.resolve(data); }});
+const data = fs.readFileSync(filename);
+```
+
+```javascript
+// script to truncate each file in a directory in half 
+const fs = require('fs');
+const path = require('path');
+const dirname = path.join(__dirname, 'files');
+
+// read the list of files
+const files = fs.readdirSync(dirname); // can't do anything without this, so sync is ok
+files.forEach(file => {
+	// get the file path
+	const filePath = path.join(dirname, file);
+	// get the file meta info (including size)
+	fs.stat(filePath, (e, stats) => {
+		if (e) throw e;
+		// truncate the file
+		fs.truncate(filePath, stats.size/2, (e) => {
+			if (e) throw e;
+		});
+	});
+});
+```
+
+```javascript
+// script to delete all files older than 7 days in a directory
+// use test directory to, uh, test
+
+const fs = require('fs');
+const path = require('path');
+const dirname = path.join(__dirname, 'testfiles');
+
+fs.mkdirSync(dirname); // can't do anything without this, so sync is ok
+const ms1Day = 24*60*60*1000;
+
+// create files to test
+for(let i=0; i<10; i++) {
+	const filePath = path.join(dirname, `file-${i}`);
+	fs.writeFile(filePath, i, (e) => {
+		if (e) throw e;
+		
+		const time = (Date.now() - i*ms1Day)/1000; // Timestamp in seconds
+		// utimes changes the access time and modified time of the file
+		fs.utimes(filePath, time, time, (e) => {
+			if (e) throw e;
+		});
+	});
+}
+
+// remove the old
+
+const files = readdirSync(dirname);
+files.forEach(file => {
+	const filePath = path.join(dirname, file);
+	// get the mtime with stat
+	fs.stat(filePath, (e, stats) => {
+		if (e) throw e;
+		if ((Date.now() - stats.mtime.getTime()) > 7 * ms1Day) {
+			fs.unlink(filePath, (e) => {
+				if (e) throw e;
+				console.log('deleted', filePath);
+			});
+		}
+	});
+});
+
+```
+
+#### Console and Utilities
+- Node has a Console class that we can use to write to any stream
+- Also has a global console instance object that is configured to write to stdout and stderr
+- To write to different streams, you can instantiate a new Console instance, and pass it the streams as constructor args
+```javascript
+// Example of custom Console instnace
+const fs = require('fs');
+
+const out = fs.createWriteStream('./out.log');
+const err = fs.createWriteStream('./err.log');
+
+const myConsole = new console.Console(out, err);
+
+setInterval(function () {
+	myConsole.log(new Date());
+	myConsole.error(new Error('lolded'));
+}, 5000);
+```
+```
+Console {
+  log: [Function: bound ], // big, heavy, wood
+  info: [Function: bound ], // alias to log
+  warn: [Function: bound ], // alias to console.error
+  error: [Function: bound ], // like log, but to stderr
+  dir: [Function: bound ], // can pass the second arg of options for util.inspect (e.g. depth)
+  time: [Function: bound ], // used for timer. Pass it an identifier, it starts the timer
+  timeEnd: [Function: bound ], // used for timer. pass it an identifier, it stops the timer and returns the time elapsed
+  trace: [Function: bound trace], // like console.error, but prints the stack trace
+  assert: [Function: bound ], // throws exception if arg resolves to false, or returns undefined
+  Console: [Function: Console] }
+
+```
+
+- util.format  - printf style formatting
+- util.inspect - used by console
+	- `util.inspect(global, { depth: 1 });`
+- util.debuglog - console log that only writes if NODE_DEBUG=<instantiation arg>
+```javascript
+const debugLog = util.debuglog('foo');
+debugLog('ohai');//only displays if NODE_DEBUG=foo
+```
+
+```
+assert
+{ [Function: ok]
+  AssertionError: 
+   { [Function: AssertionError]
+     super_: 
+      { [Function: Error]
+        captureStackTrace: [Function: captureStackTrace],
+        stackTraceLimit: 10 } },
+  fail: [Function: fail],
+  ok: [Circular],
+  equal: [Function: equal],
+  notEqual: [Function: notEqual],
+  deepEqual: [Function: deepEqual],
+  deepStrictEqual: [Function: deepStrictEqual],
+  notDeepEqual: [Function: notDeepEqual],
+  notDeepStrictEqual: [Function: notDeepStrictEqual],
+  strictEqual: [Function: strictEqual],
+  notStrictEqual: [Function: notStrictEqual],
+  throws: [Function],
+  doesNotThrow: [Function],
+  ifError: [Function] } // Throws if the arg is truthy, a la error arg for callbacks
+
+```
+
+#### Debugging
+
+- Start debugger by adding 'debug' after node when executing
+- Debugger connects and listens on a port
+- You can type 'help' for commands
+- Add breakpoints by using sb(line number) cmd
+- Add watch expressions with watch('variable name')
+
+- Integrates with chrome debugger
+	- `node --inspect --debug-brk yourscript.js`
+	- gives you a url to open in chrome
+	- can use debugger in chrome
+
+## Node Streams
+
+- Allow you to compose functionality
+- Readable and Writable Streams
+- Collections of data
+- They may not all be available all at once
+- Don't have to fit in memory all at once
+
